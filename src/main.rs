@@ -20,6 +20,14 @@ enum WalletError {
     NegativeAmount,
     InsufficientFunds,
 }
+impl fmt::Display for WalletError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WalletError::NegativeAmount => write!(f, "Negative Amount"),
+            WalletError::InsufficientFunds => write!(f, "Insufficient Funds"),
+        }
+    }
+}
 
 #[derive(Default)]
 struct Wallet {
@@ -50,9 +58,8 @@ impl Wallet {
         Ok(())
     }
 
-    fn get_balance(&self, curr: Currency) -> String {
-        let balance = self.balances.get(&curr).unwrap_or(&0);
-        format!("{}: {}", curr.to_string(), balance)
+    fn get_balance(&self, curr: Currency) -> i64 {
+        return *self.balances.get(&curr).unwrap_or(&0);
     }
 
     fn gain_currencies(&mut self, gains: &[(Currency, i64)]) -> Result<(), WalletError> {
@@ -114,19 +121,35 @@ enum TransactionError {
 fn transaction(
     curr: Currency,
     amount: i64,
-    &mut walletA: Wallet,
-    &mut walletB: Wallet,
+    wallet_a: &mut Wallet,
+    wallet_b: &mut Wallet,
 ) -> Result<(), TransactionError> {
     /*
-    * Moves an amount of currency FROM walletA TO walletB, or error
-    */
+     * Moves an amount of currency FROM wallet_a TO wallet_b, or error
+     */
+    if amount < 0 {
+        return Err(TransactionError::NegativeAmount);
+    }
+
+    if wallet_a.get_balance(curr) < amount {
+        return Err(TransactionError::InsufficientFunds);
+    }
+
+    wallet_a.spend_currency(curr, amount).unwrap();
+    wallet_b.gain_currency(curr, amount).unwrap();
+
+    Ok(())
 }
 
 fn main() {
     let mut wallet = Wallet::default();
     wallet.gain_currency(Currency::Coins, 10).unwrap();
     wallet.spend_currency(Currency::Coins, 3).unwrap();
-    println!("{}", wallet.get_balance(Currency::Coins));
+    println!(
+        "{}: {}",
+        Currency::Coins.to_string(),
+        wallet.get_balance(Currency::Coins)
+    );
 
     // Print different currency
     wallet.gain_currency(Currency::Diamonds, 1).unwrap();
@@ -239,5 +262,16 @@ mod tests {
         );
         // No change
         assert_eq!(wallet.balances.get(&Currency::Coins), Some(&5));
+    }
+    #[test]
+    fn test_transaction() {
+        let mut wallet_a = Wallet::default();
+        let mut wallet_b = Wallet::default();
+
+        wallet_a.gain_currency(Currency::Coins, 5).unwrap();
+        wallet_b.gain_currency(Currency::Coins, 5).unwrap();
+        transaction(Currency::Coins, 3, &mut wallet_a, &mut wallet_b).unwrap();
+        assert_eq!(wallet_a.get_balance(Currency::Coins), 2);
+        assert_eq!(wallet_b.get_balance(Currency::Coins), 8);
     }
 }
