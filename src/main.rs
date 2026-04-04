@@ -1,9 +1,12 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
+use std::fs::File;
+use std::io::{Read, Write};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(Hash, PartialEq, Eq, Copy, Clone, EnumIter)]
+#[derive(Hash, PartialEq, Eq, Copy, Clone, EnumIter, Serialize, Deserialize)]
 enum Currency {
     Coins,
     Diamonds,
@@ -31,7 +34,7 @@ impl fmt::Display for WalletError {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 struct Wallet {
     balances: HashMap<Currency, i64>,
 }
@@ -75,6 +78,7 @@ impl Wallet {
 
         Ok(())
     }
+
     fn spend_currencies(&mut self, spends: &[(Currency, i64)]) -> Result<(), WalletError> {
         for &(_, amount) in spends {
             if amount < 0 {
@@ -103,11 +107,39 @@ impl Wallet {
 
         Ok(())
     }
+
     fn get_balances(&self) -> Vec<(Currency, i64)> {
         self.balances
             .iter()
             .map(|(curr, amount)| (*curr, *amount))
             .collect()
+    }
+
+    pub fn save_to_file(&self, filepath: &str) -> Result<(), String> {
+        let json = serde_json::to_string_pretty(&self)
+            .map_err(|e| format!("Failed to serialize wallet to JSON: {}", e))?;
+
+        let mut file = File::create(filepath)
+            .map_err(|e| format!("Failed to create file {}: {}", filepath, e))?;
+
+        file.write_all(json.as_bytes())
+            .map_err(|e| format!("Failed to write to file {}: {}", filepath, e))?;
+
+        Ok(())
+    }
+
+    pub fn load_from_file(filepath: &str) -> Result<Self, String> {
+        let mut file =
+            File::open(filepath).map_err(|e| format!("Failed to open file {}: {}", filepath, e))?;
+
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)
+            .map_err(|e| format!("Failed to read file {}: {}", filepath, e))?;
+
+        let wallet: Wallet =
+            serde_json::from_str(&contents).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+        Ok(wallet)
     }
 }
 
@@ -168,19 +200,26 @@ fn main() {
 
     // Print different currency
     wallet.gain_currency(Currency::Diamonds, 1).unwrap();
-    println!("{}", wallet.get_balance(Currency::Diamonds));
+    println!(
+        "{}, {}",
+        Currency::Diamonds.to_string(),
+        wallet.get_balance(Currency::Diamonds)
+    );
 
     // Print multiple
     let balances = wallet.get_balances();
     for (currency, amount) in balances {
         println!("{}: {}", currency, amount);
     }
+
+    wallet.save_to_file("wallet.json").unwrap();
 }
 
 // ================ TESTS ====================================================
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_gain_coins() {
@@ -306,5 +345,24 @@ mod tests {
         assert_eq!(wallet_b.get_balance(Currency::Coins), 50);
         assert_eq!(wallet_c.get_balance(Currency::Coins), 200);
         assert_eq!(wallet_c.get_balance(Currency::Diamonds), 5);
+    }
+
+    #[test]
+    fn test_save_load_json() -> Result<(), String> {
+        let mut wallet = Wallet::default();
+        wallet.gain_currency(Currency::Coins, 200).unwrap();
+        wallet.gain_currency(Currency::Diamonds, 50).unwrap();
+
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_str().unwrap();
+        let json_path = format!("{}.json", path);
+
+        wallet.save_to_file(&json_path)?;
+        let loaded = Wallet::load_from_file(&json_path)?;
+
+        assert_eq!(loaded.get_balance(Currency::Coins), 200);
+        assert_eq!(loaded.get_balance(Currency::Diamonds), 50);
+
+        Ok(())
     }
 }
