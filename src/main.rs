@@ -96,6 +96,30 @@ impl Wallet {
 
         Ok(())
     }
+    fn get_balances(&self) -> Vec<(Currency, i64)> {
+        self.balances
+            .iter()
+            .map(|(curr, amount)| (*curr, *amount))
+            .collect()
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum TransactionError {
+    NegativeAmount,
+    InsufficientFunds,
+}
+
+// Perhaps this logic should belong to a manager
+fn transaction(
+    curr: Currency,
+    amount: i64,
+    &mut walletA: Wallet,
+    &mut walletB: Wallet,
+) -> Result<(), TransactionError> {
+    /*
+    * Moves an amount of currency FROM walletA TO walletB, or error
+    */
 }
 
 fn main() {
@@ -104,8 +128,15 @@ fn main() {
     wallet.spend_currency(Currency::Coins, 3).unwrap();
     println!("{}", wallet.get_balance(Currency::Coins));
 
+    // Print different currency
     wallet.gain_currency(Currency::Diamonds, 1).unwrap();
     println!("{}", wallet.get_balance(Currency::Diamonds));
+
+    // Print multiple
+    let balances = wallet.get_balances();
+    for (currency, amount) in balances {
+        println!("{}: {}", currency, amount);
+    }
 }
 
 // ================ TESTS ====================================================
