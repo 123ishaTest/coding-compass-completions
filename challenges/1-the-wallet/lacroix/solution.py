@@ -2,6 +2,11 @@
 # This is a simple solution meant to demonstrate several programming concepts to those unfamiliar with them.
 # Python and JSON are used for their approachability and readability. Any language and data format could be used to achieve the same result. My personal favorite combination is C# and binary.
 
+# I chose to store data in a local file due to the fact that data persistence is common in video games and it is important to know which data structure fits your requirements best.
+# I also try to never repeat myself, obviously with some leeway for simpler expressions. Abstraction is important to keep clean, maintainable, and expandable codebases.
+# This solution contains a rudimentary structure for per-player wallet data, giving you the ability to add more players and currencies, as well as gain and spend particular currency.
+# Everything just boils down to reading the stored data, modifying it, and writing it back to the file.
+
 # ===============================================================================================================
 # FUNCTIONS AND DEFINITIONS
 # ===============================================================================================================
