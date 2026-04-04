@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::fmt;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
-#[derive(Hash, PartialEq, Eq, Copy, Clone)]
+#[derive(Hash, PartialEq, Eq, Copy, Clone, EnumIter)]
 enum Currency {
     Coins,
     Diamonds,
@@ -67,9 +69,7 @@ impl Wallet {
             if amount < 0 {
                 return Err(WalletError::NegativeAmount);
             }
-        }
 
-        for &(curr, amount) in gains {
             *self.balances.entry(curr).or_insert(0) += amount;
         }
 
@@ -130,7 +130,6 @@ fn transaction(
     if amount < 0 {
         return Err(TransactionError::NegativeAmount);
     }
-
     if wallet_a.get_balance(curr) < amount {
         return Err(TransactionError::InsufficientFunds);
     }
@@ -139,6 +138,22 @@ fn transaction(
     wallet_b.gain_currency(curr, amount).unwrap();
 
     Ok(())
+}
+
+fn merge_wallets(wallet_a: &Wallet, wallet_b: &Wallet) -> Wallet {
+    /*
+     * Creates a new wallet with the combined balances of both input wallets
+     */
+    let mut new_wallet = Wallet::default();
+
+    for currency in Currency::iter() {
+        let total = wallet_a.get_balance(currency) + wallet_b.get_balance(currency);
+        if total > 0 {
+            let _ = new_wallet.gain_currency(currency, total);
+        }
+    }
+
+    new_wallet
 }
 
 fn main() {
@@ -263,6 +278,7 @@ mod tests {
         // No change
         assert_eq!(wallet.balances.get(&Currency::Coins), Some(&5));
     }
+
     #[test]
     fn test_transaction() {
         let mut wallet_a = Wallet::default();
@@ -273,5 +289,22 @@ mod tests {
         transaction(Currency::Coins, 3, &mut wallet_a, &mut wallet_b).unwrap();
         assert_eq!(wallet_a.get_balance(Currency::Coins), 2);
         assert_eq!(wallet_b.get_balance(Currency::Coins), 8);
+    }
+
+    #[test]
+    fn test_merge() {
+        let mut wallet_a = Wallet::default();
+        let mut wallet_b = Wallet::default();
+        wallet_a.gain_currency(Currency::Coins, 150).unwrap();
+        wallet_a.gain_currency(Currency::Diamonds, 5).unwrap();
+        wallet_b.gain_currency(Currency::Coins, 50).unwrap();
+
+        let wallet_c = merge_wallets(&wallet_a, &wallet_b);
+
+        assert_eq!(wallet_a.get_balance(Currency::Coins), 150);
+        assert_eq!(wallet_a.get_balance(Currency::Diamonds), 5);
+        assert_eq!(wallet_b.get_balance(Currency::Coins), 50);
+        assert_eq!(wallet_c.get_balance(Currency::Coins), 200);
+        assert_eq!(wallet_c.get_balance(Currency::Diamonds), 5);
     }
 }
