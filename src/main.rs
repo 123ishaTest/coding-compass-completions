@@ -57,7 +57,13 @@ impl Wallet {
 }
 
 fn main() {
-    println!("Hello world!");
+    let mut wallet = Wallet::default();
+    wallet.gain_currency(Currency::Coins, 10).unwrap();
+    wallet.spend_currency(Currency::Coins, 3).unwrap();
+    println!("{}", wallet.get_balance(Currency::Coins));
+
+    wallet.gain_currency(Currency::Diamonds, 1).unwrap();
+    println!("{}", wallet.get_balance(Currency::Diamonds));
 }
 
 // ================ TESTS =====================
@@ -84,6 +90,7 @@ mod tests {
         assert_eq!(wallet.balances.get(&Currency::Coins), Some(&5));
         assert_eq!(wallet.balances.get(&Currency::Diamonds), Some(&2));
     }
+
     #[test]
     fn test_spend_coins() {
         let mut wallet = Wallet::default();
@@ -91,6 +98,7 @@ mod tests {
         assert_eq!(wallet.spend_currency(Currency::Coins, 4), Ok(()));
         assert_eq!(wallet.balances.get(&Currency::Coins), Some(&6));
     }
+
     #[test]
     fn test_overspend_coins() {
         let mut wallet = Wallet::default();
@@ -100,5 +108,26 @@ mod tests {
             Err(WalletError::InsufficientFunds)
         );
         assert_eq!(wallet.balances.get(&Currency::Coins), Some(&3));
+    }
+
+    #[test]
+    fn test_negative_amounts() {
+        let mut wallet = Wallet::default();
+        assert_eq!(
+            wallet.gain_currency(Currency::Coins, -5),
+            Err(WalletError::NegativeAmount)
+        );
+        assert_eq!(
+            wallet.gain_currency(Currency::Diamonds, -5),
+            Err(WalletError::NegativeAmount)
+        );
+        assert_eq!(
+            wallet.spend_currency(Currency::Coins, -5),
+            Err(WalletError::NegativeAmount)
+        );
+        assert_eq!(
+            wallet.spend_currency(Currency::Diamonds, -5),
+            Err(WalletError::NegativeAmount)
+        );
     }
 }
